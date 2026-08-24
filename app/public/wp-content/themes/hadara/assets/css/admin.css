@@ -1,0 +1,112 @@
+/* Galería del producto en el editor (clásico y bloques). */
+
+.hadara-gallery__list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+	margin: 12px 0;
+	padding: 0;
+	list-style: none;
+}
+
+.hadara-gallery__item {
+	position: relative;
+	width: 110px;
+	margin: 0;
+	padding: 6px;
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+}
+
+.hadara-gallery__item img {
+	display: block;
+	width: 100%;
+	height: 96px;
+	object-fit: contain;
+}
+
+.hadara-gallery__actions {
+	display: flex;
+	justify-content: center;
+	gap: 10px;
+	margin-top: 6px;
+}
+
+.hadara-gallery__actions .button-link {
+	color: #2271b1;
+	font-size: 15px;
+	line-height: 1;
+	text-decoration: none;
+}
+
+.hadara-gallery__remove {
+	color: #b32d2e;
+}
+
+.hadara-gallery__empty {
+	margin: 12px 0;
+	color: #646970;
+	font-style: italic;
+}
+
+.hadara-gallery__add {
+	width: 100%;
+	justify-content: center;
+	margin-top: 4px;
+}
+
+/* Panel lateral del editor de bloques */
+
+.hadara-gallery-panel__help {
+	margin-top: 0;
+	color: #646970;
+	font-size: 12px;
+	line-height: 1.5;
+}
+
+.hadara-gallery-panel__list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin: 0 0 12px;
+	padding: 0;
+	list-style: none;
+}
+
+.hadara-gallery-panel__item {
+	width: calc(50% - 4px);
+	margin: 0;
+	padding: 6px;
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	box-sizing: border-box;
+}
+
+.hadara-gallery-panel__item img {
+	display: block;
+	width: 100%;
+	height: 72px;
+	object-fit: contain;
+	background: #f0f0f1;
+}
+
+.hadara-gallery-panel__actions {
+	display: flex;
+	justify-content: center;
+	gap: 0;
+	margin-top: 4px;
+}
+
+.hadara-gallery-panel__empty {
+	margin: 0 0 12px;
+	color: #646970;
+	font-size: 12px;
+	font-style: italic;
+}
+
+.hadara-gallery-panel__add {
+	width: 100%;
+	justify-content: center;
+}
