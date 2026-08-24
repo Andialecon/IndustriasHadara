@@ -1,5 +1,5 @@
 /**
- * Comportamientos del front: menú móvil y galería de la ficha de producto.
+ * Comportamientos del front: menú móvil, carrusel de portada y galería de producto.
  */
 (function () {
 	'use strict';
@@ -29,6 +29,139 @@
 				}
 			});
 		});
+	}
+
+	var spotlight = document.querySelector('[data-spotlight]');
+
+	if (spotlight) {
+		var spotlightScroller = spotlight.querySelector('[data-spotlight-scroller]');
+		var spotlightTrack = spotlight.querySelector('.product-spotlight__track');
+		var spotlightPrev = spotlight.querySelector('[data-spotlight-prev]');
+		var spotlightNext = spotlight.querySelector('[data-spotlight-next]');
+		var spotlightReduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		var spotlightTimer;
+
+		if (spotlightScroller && spotlightTrack) {
+			var originalSlides = Array.prototype.slice.call(spotlightTrack.children);
+			var originalCount = originalSlides.length;
+
+			originalSlides.forEach(function (slide) {
+				var clone = slide.cloneNode(true);
+				clone.setAttribute('aria-hidden', 'true');
+				clone.querySelectorAll('a, button, input').forEach(function (el) {
+					el.setAttribute('tabindex', '-1');
+				});
+				spotlightTrack.appendChild(clone);
+			});
+
+			function spotlightStep() {
+				var slide = spotlightTrack.querySelector('.product-spotlight__slide');
+
+				if (!slide) {
+					return spotlightScroller.clientWidth;
+				}
+
+				var styles = window.getComputedStyle(spotlightTrack);
+				var gap = parseFloat(styles.columnGap || styles.gap) || 16;
+
+				return slide.getBoundingClientRect().width + gap;
+			}
+
+			function spotlightSetWidth() {
+				return originalCount * spotlightStep();
+			}
+
+			function normalizeSpotlight() {
+				var set = spotlightSetWidth();
+
+				if (set <= 0) {
+					return;
+				}
+
+				var left = spotlightScroller.scrollLeft;
+
+				if (left >= set) {
+					spotlightScroller.scrollLeft = left - set;
+				} else if (left < 0) {
+					spotlightScroller.scrollLeft = left + set;
+				}
+			}
+
+			function goSpotlight(direction) {
+				var set = spotlightSetWidth();
+				var step = spotlightStep();
+				var motion = spotlightReduce ? 'auto' : 'smooth';
+
+				if (direction < 0 && spotlightScroller.scrollLeft <= 2 && set > 0) {
+					spotlightScroller.scrollLeft += set;
+				}
+
+				spotlightScroller.scrollBy({
+					left: direction * step,
+					behavior: motion,
+				});
+			}
+
+			function stopSpotlight() {
+				window.clearInterval(spotlightTimer);
+				spotlightTimer = null;
+			}
+
+			function startSpotlight() {
+				if (spotlightReduce || originalCount < 2) {
+					return;
+				}
+
+				stopSpotlight();
+				spotlightTimer = window.setInterval(function () {
+					goSpotlight(1);
+				}, 4800);
+			}
+
+			function onSpotlightSettled() {
+				window.clearTimeout(spotlightScroller._loopTimer);
+				normalizeSpotlight();
+			}
+
+			spotlightScroller.addEventListener('scrollend', onSpotlightSettled);
+			spotlightScroller.addEventListener(
+				'scroll',
+				function () {
+					window.clearTimeout(spotlightScroller._loopTimer);
+					spotlightScroller._loopTimer = window.setTimeout(onSpotlightSettled, 480);
+				},
+				{ passive: true }
+			);
+
+			if (spotlightPrev) {
+				spotlightPrev.addEventListener('click', function () {
+					goSpotlight(-1);
+				});
+			}
+
+			if (spotlightNext) {
+				spotlightNext.addEventListener('click', function () {
+					goSpotlight(1);
+				});
+			}
+
+			if ('IntersectionObserver' in window) {
+				var spotlightObserver = new IntersectionObserver(
+					function (entries) {
+						if (entries[0].isIntersecting) {
+							startSpotlight();
+						} else {
+							stopSpotlight();
+						}
+					},
+					{ threshold: 0.35 }
+				);
+
+				spotlightObserver.observe(spotlight);
+			} else {
+				startSpotlight();
+			}
+		}
 	}
 
 	var gallery = document.querySelector('[data-gallery]');

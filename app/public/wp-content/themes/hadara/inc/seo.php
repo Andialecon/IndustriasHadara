@@ -182,6 +182,14 @@ function hadara_wp_robots( $robots ) {
 		return $robots;
 	}
 
+	if ( hadara_is_sitemap_request() ) {
+		unset( $robots['noindex'] );
+		$robots['index']  = true;
+		$robots['follow'] = true;
+
+		return $robots;
+	}
+
 	if ( is_search() || is_404() ) {
 		$robots['noindex'] = true;
 		$robots['follow']  = true;
@@ -413,3 +421,212 @@ function hadara_sitemap_providers( $provider, $name ) {
 	return 'users' === $name ? false : $provider;
 }
 add_filter( 'wp_sitemaps_add_provider', 'hadara_sitemap_providers', 10, 2 );
+
+/**
+ * Query var del mapa del sitio del tema.
+ *
+ * @param string[] $vars Variables.
+ * @return string[]
+ */
+function hadara_sitemap_query_vars( $vars ) {
+	$vars[] = 'hadara_sitemap';
+
+	return $vars;
+}
+add_filter( 'query_vars', 'hadara_sitemap_query_vars' );
+
+/**
+ * Reescrituras de /sitemap.xml y /wp-sitemap.xml hacia el tema.
+ *
+ * Van al frente para no depender de las reglas del núcleo, que en producción
+ * devolvían 404 (LiteSpeed / reglas no vaciadas tras la migración).
+ */
+function hadara_sitemap_rewrites() {
+	add_rewrite_rule( '^sitemap\.xml$', 'index.php?hadara_sitemap=1', 'top' );
+	add_rewrite_rule( '^wp-sitemap\.xml$', 'index.php?hadara_sitemap=1', 'top' );
+}
+add_action( 'init', 'hadara_sitemap_rewrites', 1 );
+
+/**
+ * Indica si la petición actual pide el mapa del sitio.
+ *
+ * @return bool
+ */
+function hadara_is_sitemap_request() {
+	if ( get_query_var( 'hadara_sitemap' ) ) {
+		return true;
+	}
+
+	if ( empty( $_SERVER['REQUEST_URI'] ) ) {
+		return false;
+	}
+
+	$path = wp_parse_url( wp_unslash( $_SERVER['REQUEST_URI'] ), PHP_URL_PATH );
+	$path = untrailingslashit( (string) $path );
+
+	$home_path = wp_parse_url( home_url( '/' ), PHP_URL_PATH );
+	$home_path = untrailingslashit( (string) $home_path );
+
+	if ( $home_path && 0 === strpos( $path, $home_path ) ) {
+		$path = substr( $path, strlen( $home_path ) );
+		$path = untrailingslashit( (string) $path );
+	}
+
+	return in_array( $path, array( '/sitemap.xml', '/wp-sitemap.xml' ), true );
+}
+
+/**
+ * URLs públicas que deben aparecer en el mapa del sitio.
+ *
+ * @return array<int,array{loc:string,lastmod?:string}>
+ */
+function hadara_sitemap_entries() {
+	$entries = array();
+	$seen    = array();
+
+	$add = static function ( $loc, $lastmod = '' ) use ( &$entries, &$seen ) {
+		$loc = esc_url_raw( $loc );
+
+		if ( ! $loc || isset( $seen[ $loc ] ) ) {
+			return;
+		}
+
+		$seen[ $loc ] = true;
+		$item         = array( 'loc' => $loc );
+
+		if ( $lastmod ) {
+			$item['lastmod'] = gmdate( 'c', strtotime( $lastmod ) ?: time() );
+		}
+
+		$entries[] = $item;
+	};
+
+	$add( home_url( '/' ), get_lastpostmodified( 'gmt' ) );
+
+	$archive = get_post_type_archive_link( 'producto' );
+
+	if ( $archive ) {
+		$add( $archive, get_lastpostmodified( 'gmt', 'producto' ) );
+	}
+
+	$front_id   = (int) get_option( 'page_on_front' );
+	$privacy_id = (int) get_option( 'wp_page_for_privacy_policy' );
+
+	$pages = get_posts(
+		array(
+			'post_type'      => 'page',
+			'post_status'    => 'publish',
+			'posts_per_page' => 50,
+			'orderby'        => 'modified',
+			'no_found_rows'  => true,
+		)
+	);
+
+	foreach ( $pages as $page ) {
+		if ( (int) $page->ID === $front_id || (int) $page->ID === $privacy_id ) {
+			continue;
+		}
+
+		$add( get_permalink( $page ), $page->post_modified_gmt );
+	}
+
+	$products = get_posts(
+		array(
+			'post_type'      => 'producto',
+			'post_status'    => 'publish',
+			'posts_per_page' => 500,
+			'orderby'        => 'modified',
+			'no_found_rows'  => true,
+		)
+	);
+
+	foreach ( $products as $product ) {
+		$add( get_permalink( $product ), $product->post_modified_gmt );
+	}
+
+	$terms = get_terms(
+		array(
+			'taxonomy'   => 'linea',
+			'hide_empty' => true,
+		)
+	);
+
+	if ( ! is_wp_error( $terms ) ) {
+		foreach ( $terms as $term ) {
+			$link = get_term_link( $term );
+
+			if ( ! is_wp_error( $link ) ) {
+				$add( $link );
+			}
+		}
+	}
+
+	return $entries;
+}
+
+/**
+ * Envía el mapa del sitio como XML y termina la petición.
+ */
+function hadara_print_url_sitemap() {
+	if ( ! defined( 'DONOTCACHEPAGE' ) ) {
+		define( 'DONOTCACHEPAGE', true );
+	}
+
+	status_header( 200 );
+	header( 'Content-Type: application/xml; charset=UTF-8' );
+	header( 'X-LiteSpeed-Cache-Control: no-cache' );
+	nocache_headers();
+
+	$entries = hadara_sitemap_entries();
+
+	echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+	echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
+
+	foreach ( $entries as $entry ) {
+		echo "\t<url>\n";
+		echo "\t\t<loc>" . esc_xml( $entry['loc'] ) . "</loc>\n";
+
+		if ( ! empty( $entry['lastmod'] ) ) {
+			echo "\t\t<lastmod>" . esc_xml( $entry['lastmod'] ) . "</lastmod>\n";
+		}
+
+		echo "\t</url>\n";
+	}
+
+	echo '</urlset>';
+	exit;
+}
+
+/**
+ * Sirve el mapa del tema cuando la petición llega a WordPress.
+ */
+function hadara_serve_sitemap() {
+	if ( ! hadara_is_sitemap_request() ) {
+		return;
+	}
+
+	hadara_print_url_sitemap();
+}
+add_action( 'template_redirect', 'hadara_serve_sitemap', 0 );
+
+/**
+ * Anuncia /sitemap.xml en robots.txt además del mapa del núcleo.
+ *
+ * @param string $output  robots.txt.
+ * @param bool   $public  Si el sitio es público.
+ * @return string
+ */
+function hadara_robots_txt( $output, $public ) {
+	if ( ! $public ) {
+		return $output;
+	}
+
+	$sitemap = home_url( '/sitemap.xml' );
+
+	if ( false === strpos( $output, $sitemap ) ) {
+		$output = rtrim( $output ) . "\n\nSitemap: " . $sitemap . "\n";
+	}
+
+	return $output;
+}
+add_filter( 'robots_txt', 'hadara_robots_txt', 20, 2 );

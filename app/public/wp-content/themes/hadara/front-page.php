@@ -27,10 +27,10 @@ $hadara_featured = hadara_products_by_slug(
 <section class="hero">
 	<div class="container hero__inner">
 		<div class="hero__content">
-			<p class="eyebrow"><?php echo hadara_icon( 'shield' ); ?><?php esc_html_e( 'Dotación industrial', 'hadara' ); ?></p>
-			<h1><?php esc_html_e( 'Dotación industrial que', 'hadara' ); ?> <span class="accent"><?php esc_html_e( 'aguanta el turno completo', 'hadara' ); ?></span></h1>
+			<p class="eyebrow"><?php echo hadara_icon( 'shield' ); ?><?php echo esc_html( hadara_hero_text( 'eyebrow' ) ); ?></p>
+			<h1><?php echo esc_html( hadara_hero_text( 'title' ) ); ?> <span class="accent"><?php echo esc_html( hadara_hero_text( 'accent' ) ); ?></span></h1>
 			<p class="hero__lead">
-				<?php esc_html_e( 'Jeans y pantalones de trabajo, camisas en dril y jean, overoles, chalecos, capuchas y calzado de seguridad para dotar a su empresa. Le asesoramos qué necesita cada puesto y marcamos las prendas con su logo.', 'hadara' ); ?>
+				<?php echo esc_html( hadara_hero_text( 'lead' ) ); ?>
 			</p>
 
 			<div class="hero__actions">
@@ -42,17 +42,59 @@ $hadara_featured = hadara_products_by_slug(
 				<?php echo hadara_whatsapp_button( array( 'label' => __( 'Pedir cotización', 'hadara' ), 'class' => 'btn btn--whatsapp btn--lg' ) ); ?>
 			</div>
 
-			<ul class="hero__points">
-				<li><?php echo hadara_icon( 'check' ); ?><?php esc_html_e( 'Tallas de S a 5XL y de 28 a 48', 'hadara' ); ?></li>
-				<li><?php echo hadara_icon( 'check' ); ?><?php esc_html_e( 'Bordado del logo de su empresa', 'hadara' ); ?></li>
-				<li><?php echo hadara_icon( 'check' ); ?><?php esc_html_e( 'Cotización por WhatsApp, sin compra en línea', 'hadara' ); ?></li>
-				<li><?php echo hadara_icon( 'check' ); ?><?php esc_html_e( 'Despacho a todo el país', 'hadara' ); ?></li>
-			</ul>
+			<?php
+			$hadara_hero_points = array_filter(
+				array(
+					hadara_hero_text( 'point_1' ),
+					hadara_hero_text( 'point_2' ),
+					hadara_hero_text( 'point_3' ),
+					hadara_hero_text( 'point_4' ),
+				)
+			);
+			?>
+			<?php if ( $hadara_hero_points ) : ?>
+				<ul class="hero__points">
+					<?php foreach ( $hadara_hero_points as $hadara_point ) : ?>
+						<li><?php echo hadara_icon( 'check' ); ?><?php echo esc_html( $hadara_point ); ?></li>
+					<?php endforeach; ?>
+				</ul>
+			<?php endif; ?>
 		</div>
 
 		<?php echo hadara_hero_photo(); ?>
 	</div>
 </section>
+
+<?php if ( $hadara_featured ) : ?>
+	<section class="product-spotlight" data-spotlight aria-labelledby="product-spotlight-title">
+		<div class="container product-spotlight__inner">
+			<div class="product-spotlight__head">
+				<div>
+					<p class="eyebrow"><?php esc_html_e( 'Más populares', 'hadara' ); ?></p>
+					<h2 id="product-spotlight-title"><?php esc_html_e( 'Las referencias que más piden las empresas', 'hadara' ); ?></h2>
+				</div>
+				<div class="product-spotlight__nav">
+					<button type="button" class="product-spotlight__btn" data-spotlight-prev aria-controls="product-spotlight-track" aria-label="<?php esc_attr_e( 'Ver productos anteriores', 'hadara' ); ?>">
+						<?php echo hadara_icon( 'chevron-left' ); ?>
+					</button>
+					<button type="button" class="product-spotlight__btn" data-spotlight-next aria-controls="product-spotlight-track" aria-label="<?php esc_attr_e( 'Ver más productos', 'hadara' ); ?>">
+						<?php echo hadara_icon( 'chevron-right' ); ?>
+					</button>
+				</div>
+			</div>
+
+			<div class="product-spotlight__viewport" data-spotlight-scroller>
+				<ul class="product-spotlight__track" id="product-spotlight-track">
+					<?php foreach ( $hadara_featured as $hadara_index => $hadara_item ) : ?>
+						<li class="product-spotlight__slide">
+							<?php hadara_spotlight_card( $hadara_item, (int) $hadara_index ); ?>
+						</li>
+					<?php endforeach; ?>
+				</ul>
+			</div>
+		</div>
+	</section>
+<?php endif; ?>
 
 <?php if ( $hadara_lines ) : ?>
 	<section class="section">

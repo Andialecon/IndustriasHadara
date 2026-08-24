@@ -170,6 +170,74 @@ function hadara_customize_register( $wp_customize ) {
 			)
 		)
 	);
+
+	$wp_customize->add_section(
+		'hadara_hero',
+		array(
+			'title'       => __( 'Banner de portada', 'hadara' ),
+			'description' => __( 'Textos del banner principal de la página de inicio.', 'hadara' ),
+			'priority'    => 32,
+		)
+	);
+
+	$hadara_hero_fields = array(
+		'eyebrow' => array(
+			'label' => __( 'Etiqueta superior', 'hadara' ),
+			'type'  => 'text',
+		),
+		'title'   => array(
+			'label' => __( 'Título (primera línea)', 'hadara' ),
+			'type'  => 'text',
+		),
+		'accent'  => array(
+			'label'       => __( 'Título destacado (naranja)', 'hadara' ),
+			'description' => __( 'Se muestra en naranja, a continuación de la primera línea.', 'hadara' ),
+			'type'        => 'text',
+		),
+		'lead'    => array(
+			'label' => __( 'Párrafo de apoyo', 'hadara' ),
+			'type'  => 'textarea',
+		),
+		'point_1' => array(
+			'label' => __( 'Viñeta 1', 'hadara' ),
+			'type'  => 'text',
+		),
+		'point_2' => array(
+			'label' => __( 'Viñeta 2', 'hadara' ),
+			'type'  => 'text',
+		),
+		'point_3' => array(
+			'label' => __( 'Viñeta 3', 'hadara' ),
+			'type'  => 'text',
+		),
+		'point_4' => array(
+			'label'       => __( 'Viñeta 4', 'hadara' ),
+			'description' => __( 'Deje una viñeta vacía para ocultarla.', 'hadara' ),
+			'type'        => 'text',
+		),
+	);
+
+	$hadara_hero_defaults = hadara_hero_defaults();
+
+	foreach ( $hadara_hero_fields as $hadara_key => $hadara_field ) {
+		$wp_customize->add_setting(
+			'hadara_hero_' . $hadara_key,
+			array(
+				'default'           => $hadara_hero_defaults[ $hadara_key ],
+				'sanitize_callback' => 'textarea' === $hadara_field['type'] ? 'sanitize_textarea_field' : 'sanitize_text_field',
+			)
+		);
+
+		$wp_customize->add_control(
+			'hadara_hero_' . $hadara_key,
+			array(
+				'label'       => $hadara_field['label'],
+				'description' => isset( $hadara_field['description'] ) ? $hadara_field['description'] : '',
+				'section'     => 'hadara_hero',
+				'type'        => $hadara_field['type'],
+			)
+		);
+	}
 }
 add_action( 'customize_register', 'hadara_customize_register' );
 
@@ -291,3 +359,58 @@ function hadara_widgets_init() {
 	);
 }
 add_action( 'widgets_init', 'hadara_widgets_init' );
+
+/**
+ * Indica si el H1 de portada todavía es copy comercial sin la palabra del nicho.
+ *
+ * @param string $title Título guardado en el personalizador.
+ * @return bool
+ */
+function hadara_hero_title_needs_seo_update( $title ) {
+	$title = trim( (string) $title );
+
+	if ( '' === $title ) {
+		return true;
+	}
+
+	$weak = array(
+		'Estilo y Calidad al mejor precio',
+		'Estilo y Calidad al',
+		'Dotación industrial que',
+	);
+
+	if ( in_array( $title, $weak, true ) ) {
+		return true;
+	}
+
+	return false !== mb_stripos( $title, 'Estilo y Calidad' );
+}
+
+/**
+ * Vuelca las reglas de reescritura (CPT, taxonomía y mapa del sitio).
+ */
+function hadara_flush_rewrites() {
+	flush_rewrite_rules( false );
+}
+add_action( 'after_switch_theme', 'hadara_flush_rewrites' );
+
+/**
+ * Migraciones al actualizar el tema: H1 de portada y reglas del sitemap.
+ */
+function hadara_maybe_upgrade() {
+	$stored = (string) get_option( 'hadara_theme_version', '' );
+
+	if ( $stored === HADARA_VERSION ) {
+		return;
+	}
+
+	if ( hadara_hero_title_needs_seo_update( get_theme_mod( 'hadara_hero_title', '' ) ) ) {
+		$defaults = hadara_hero_defaults();
+		set_theme_mod( 'hadara_hero_title', $defaults['title'] );
+		set_theme_mod( 'hadara_hero_accent', $defaults['accent'] );
+	}
+
+	hadara_flush_rewrites();
+	update_option( 'hadara_theme_version', HADARA_VERSION );
+}
+add_action( 'init', 'hadara_maybe_upgrade', 20 );

@@ -68,6 +68,47 @@ function hadara_hero_photo() {
 }
 
 /**
+ * Textos por defecto del banner de la portada.
+ *
+ * @return array<string,string>
+ */
+function hadara_hero_defaults() {
+	return array(
+		'eyebrow' => __( 'Dotación industrial', 'hadara' ),
+		'title'   => __( 'Dotación industrial para empresas', 'hadara' ),
+		'accent'  => __( 'en Colombia', 'hadara' ),
+		'lead'    => __( 'Jeans y pantalones de trabajo, camisas en dril y jean, overoles, chalecos, capuchas y calzado de seguridad para dotar a su empresa. Le asesoramos qué necesita cada puesto y marcamos las prendas con su logo.', 'hadara' ),
+		'point_1' => __( 'Tallas de S a 5XL y de 28 a 48', 'hadara' ),
+		'point_2' => __( 'Bordado del logo de su empresa', 'hadara' ),
+		'point_3' => __( 'Cotización por WhatsApp, sin compra en línea', 'hadara' ),
+		'point_4' => __( 'Despacho a todo el país', 'hadara' ),
+	);
+}
+
+/**
+ * Devuelve un texto del banner de portada, con el valor del personalizador o el predeterminado.
+ *
+ * @param string $key Clave: eyebrow, title, accent, lead, point_1…point_4.
+ * @return string
+ */
+function hadara_hero_text( $key ) {
+	$defaults = hadara_hero_defaults();
+
+	if ( ! isset( $defaults[ $key ] ) ) {
+		return '';
+	}
+
+	$value = get_theme_mod( 'hadara_hero_' . $key, $defaults[ $key ] );
+	$value = is_string( $value ) ? trim( $value ) : '';
+
+	if ( '' === $value && 0 !== strpos( $key, 'point_' ) ) {
+		return $defaults[ $key ];
+	}
+
+	return $value;
+}
+
+/**
  * Botón de WhatsApp.
  *
  * @param array $args Configuración del botón.
@@ -117,7 +158,10 @@ function hadara_icon( $name ) {
 		'truck'    => '<path d="M3 5h11v9H3V5Zm12 3h3.3l2.7 3.4V16h-2a2 2 0 1 1-4 0h-1V8Zm-9 8a2 2 0 1 1-4 0H1V5a1 1 0 0 1 1-1h13v11h-3.1a2 2 0 0 0-3.8 0H6Z"/>',
 		'ruler'    => '<path d="M2 8h20v8H2V8Zm2 2v4h1.5v-2H7v2h1.5v-2H10v2h1.5v-2H13v2h1.5v-2H16v2h1.5v-2H19v2h1V10H4Z"/>',
 		'tag'      => '<path d="M12.4 2.6 21 11.2a2 2 0 0 1 0 2.8l-7 7a2 2 0 0 1-2.8 0L2.6 12.4A2 2 0 0 1 2 11V4a2 2 0 0 1 2-2h7a2 2 0 0 1 1.4.6ZM6.5 5.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z"/>',
-		'search'   => '<path d="M10.5 3a7.5 7.5 0 0 1 5.95 12.1l3.72 3.73-1.41 1.41-3.73-3.72A7.5 7.5 0 1 1 10.5 3Zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11Z"/>',
+		'search'        => '<path d="M10.5 3a7.5 7.5 0 0 1 5.95 12.1l3.72 3.73-1.41 1.41-3.73-3.72A7.5 7.5 0 1 1 10.5 3Zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11Z"/>',
+		'star'           => '<path d="M12 2.6 14.7 8.2l6.2.9-4.5 4.4 1.1 6.2L12 16.8 6.5 19.7l1.1-6.2L3.1 9.1l6.2-.9L12 2.6Z"/>',
+		'chevron-left'   => '<path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12l4.58-4.59Z"/>',
+		'chevron-right'  => '<path d="M9.29 6 7.88 7.41 12.46 12l-4.58 4.59L9.29 18l6-6-6-6Z"/>',
 	);
 
 	if ( ! isset( $icons[ $name ] ) ) {
@@ -125,6 +169,100 @@ function hadara_icon( $name ) {
 	}
 
 	return '<svg class="icon icon--' . esc_attr( $name ) . '" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">' . $icons[ $name ] . '</svg>';
+}
+
+/**
+ * Tallas destacadas de un producto, si están en las especificaciones.
+ *
+ * @param int|WP_Post|null $post Producto.
+ * @return string
+ */
+function hadara_product_sizes( $post = null ) {
+	$specs = hadara_get_specs( $post );
+
+	foreach ( array( 'Tallas', 'Talla', 'Tallas pantalón' ) as $key ) {
+		if ( isset( $specs[ $key ] ) ) {
+			return $specs[ $key ];
+		}
+	}
+
+	return '';
+}
+
+/**
+ * Primera línea del catálogo asociada a un producto.
+ *
+ * @param int|WP_Post|null $post Producto.
+ * @return WP_Term|null
+ */
+function hadara_product_line( $post = null ) {
+	$post = get_post( $post );
+
+	if ( ! $post ) {
+		return null;
+	}
+
+	$terms = get_the_terms( $post, 'linea' );
+
+	if ( ! $terms || is_wp_error( $terms ) ) {
+		return null;
+	}
+
+	return $terms[0];
+}
+
+/**
+ * Tarjeta de producto para el carrusel de populares de la portada.
+ *
+ * @param int|WP_Post|null $post  Producto.
+ * @param int              $index Posición en el carrusel, para priorizar las primeras fotos.
+ */
+function hadara_spotlight_card( $post = null, $index = 0 ) {
+	$post = get_post( $post );
+
+	if ( ! $post ) {
+		return;
+	}
+
+	$sizes = hadara_product_sizes( $post );
+	$line  = hadara_product_line( $post );
+	$eager = $index < 4;
+	?>
+	<article class="spot-card">
+		<span class="spot-card__badge"><?php echo hadara_icon( 'star' ); ?><?php esc_html_e( 'Popular', 'hadara' ); ?></span>
+		<a class="spot-card__media" href="<?php echo esc_url( get_permalink( $post ) ); ?>" tabindex="-1" aria-hidden="true">
+			<?php if ( has_post_thumbnail( $post ) ) : ?>
+				<?php
+				echo get_the_post_thumbnail(
+					$post,
+					'hadara-card',
+					array(
+						'class'    => 'spot-card__img',
+						'alt'      => get_the_title( $post ),
+						'loading'  => $eager ? 'eager' : 'lazy',
+						'decoding' => $eager ? 'sync' : 'async',
+					)
+				);
+				?>
+			<?php endif; ?>
+		</a>
+		<div class="spot-card__body">
+			<?php if ( $line ) : ?>
+				<p class="spot-card__line"><?php echo esc_html( $line->name ); ?></p>
+			<?php endif; ?>
+			<h3 class="spot-card__title">
+				<a href="<?php echo esc_url( get_permalink( $post ) ); ?>"><?php echo esc_html( get_the_title( $post ) ); ?></a>
+			</h3>
+			<?php if ( $sizes ) : ?>
+				<p class="spot-card__meta"><?php echo hadara_icon( 'ruler' ); ?><?php echo esc_html( $sizes ); ?></p>
+			<?php endif; ?>
+			<div class="spot-card__actions">
+				<a class="btn btn--accent btn--sm" href="<?php echo esc_url( get_permalink( $post ) ); ?>"><?php esc_html_e( 'Ver ficha', 'hadara' ); ?></a>
+				<?php echo hadara_whatsapp_button( array( 'label' => __( 'Cotizar', 'hadara' ), 'class' => 'btn btn--whatsapp btn--sm', 'post' => $post ) ); ?>
+			</div>
+		</div>
+	</article>
+	<?php
 }
 
 /**
@@ -139,15 +277,7 @@ function hadara_product_card( $post = null ) {
 		return;
 	}
 
-	$specs = hadara_get_specs( $post );
-	$sizes = '';
-
-	foreach ( array( 'Tallas', 'Talla', 'Tallas pantalón' ) as $key ) {
-		if ( isset( $specs[ $key ] ) ) {
-			$sizes = $specs[ $key ];
-			break;
-		}
-	}
+	$sizes = hadara_product_sizes( $post );
 	?>
 	<article class="card">
 		<a class="card__media" href="<?php echo esc_url( get_permalink( $post ) ); ?>" tabindex="-1" aria-hidden="true">
