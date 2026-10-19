@@ -54,17 +54,12 @@ add_action( 'after_setup_theme', 'hadara_content_width', 0 );
  * Hojas de estilo y scripts del front.
  */
 function hadara_assets() {
-	wp_enqueue_style(
-		'hadara-fonts',
-		get_theme_file_uri( 'assets/css/fonts.css' ),
-		array(),
-		HADARA_VERSION
-	);
-
+	// Las @font-face van en línea (ver hadara_preload_fonts): una hoja aparte
+	// era una petición más que bloqueaba el primer pintado.
 	wp_enqueue_style(
 		'hadara-main',
 		get_theme_file_uri( 'assets/css/main.css' ),
-		array( 'hadara-fonts' ),
+		array(),
 		HADARA_VERSION
 	);
 
@@ -103,15 +98,23 @@ add_filter( 'script_loader_tag', 'hadara_defer_scripts', 10, 2 );
  * @return array
  */
 function hadara_image_sizes_attr( $attr, $attachment, $size ) {
-	if ( ! empty( $attr['sizes'] ) ) {
+	// El núcleo ya rellena «sizes» con el ancho del archivo antes de este filtro,
+	// así que hay que sustituirlo: si no, una tarjeta de 252 px descarga la
+	// versión de 500 a 768 px.
+	if ( 'hadara-card' === $size ) {
+		$sizes = '(max-width: 640px) 46vw, 260px';
+	} elseif ( 'hadara-detail' === $size ) {
+		$sizes = '(max-width: 1024px) 100vw, 550px';
+	} else {
 		return $attr;
 	}
 
-	if ( 'hadara-card' === $size ) {
-		$attr['sizes'] = '(max-width: 640px) 100vw, (max-width: 1024px) 45vw, 320px';
-	} elseif ( 'hadara-detail' === $size ) {
-		$attr['sizes'] = '(max-width: 1024px) 100vw, 550px';
+	if ( empty( $attr['srcset'] ) ) {
+		return $attr;
 	}
+
+	$lazy          = isset( $attr['loading'] ) && 'lazy' === $attr['loading'];
+	$attr['sizes'] = ( $lazy ? 'auto, ' : '' ) . $sizes;
 
 	return $attr;
 }
@@ -286,7 +289,10 @@ function hadara_admin_assets( $hook ) {
 add_action( 'admin_enqueue_scripts', 'hadara_admin_assets' );
 
 /**
- * Precarga la tipografía de titulares para evitar el salto de texto.
+ * Precarga las tipografías e imprime sus @font-face en línea.
+ *
+ * «Inter Fallback» ajusta Arial a las métricas de Inter para que el cambio de
+ * fuente no mueva ni redimensione el texto del banner, que es el elemento LCP.
  */
 function hadara_preload_fonts() {
 	$fonts = array( 'barlow-condensed-700.woff2', 'inter-400-700.woff2' );
@@ -297,6 +303,18 @@ function hadara_preload_fonts() {
 			esc_url( get_theme_file_uri( 'assets/fonts/' . $font ) )
 		);
 	}
+
+	$css = file_get_contents( get_theme_file_path( 'assets/css/fonts.css' ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+
+	if ( ! $css ) {
+		return;
+	}
+
+	$css  = str_replace( "url('../fonts/", "url('" . esc_url( get_theme_file_uri( 'assets/fonts/' ) ), $css );
+	$css  = preg_replace( '#/\*.*?\*/#s', '', $css );
+	$css .= '@font-face{font-family:"Inter Fallback";src:local("Arial");size-adjust:107.06%;ascent-override:90.49%;descent-override:22.56%;line-gap-override:0%}';
+
+	echo '<style id="hadara-fonts">' . trim( preg_replace( '/\s+/', ' ', $css ) ) . "</style>\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 }
 add_action( 'wp_head', 'hadara_preload_fonts', 1 );
 
@@ -414,3 +432,49 @@ function hadara_maybe_upgrade() {
 	update_option( 'hadara_theme_version', HADARA_VERSION );
 }
 add_action( 'init', 'hadara_maybe_upgrade', 20 );
+
+/**
+ * El sitio no publica firmas: los archivos de autor responden 404 y
+ * «?author=N» deja de redirigir al nombre de usuario del administrador.
+ */
+function hadara_disable_author_archives() {
+	if ( is_author() || ( isset( $_GET['author'] ) && ! is_admin() ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		global $wp_query;
+
+		$wp_query->set_404();
+		status_header( 404 );
+		nocache_headers();
+	}
+}
+add_action( 'template_redirect', 'hadara_disable_author_archives', 1 );
+
+/**
+ * Evita que redirect_canonical lleve «?author=N» a /author/<usuario>/.
+ *
+ * @param string|false $redirect URL de destino.
+ * @return string|false
+ */
+function hadara_block_author_redirect( $redirect ) {
+	return isset( $_GET['author'] ) ? false : $redirect; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+}
+add_filter( 'redirect_canonical', 'hadara_block_author_redirect' );
+
+/**
+ * Oculta la lista de usuarios de la API REST a quien no ha iniciado sesión.
+ *
+ * El editor de bloques la sigue usando con normalidad para los usuarios
+ * con sesión iniciada.
+ *
+ * @param array $endpoints Rutas registradas.
+ * @return array
+ */
+function hadara_hide_rest_users( $endpoints ) {
+	if ( is_user_logged_in() ) {
+		return $endpoints;
+	}
+
+	unset( $endpoints['/wp/v2/users'], $endpoints['/wp/v2/users/(?P<id>[\d]+)'] );
+
+	return $endpoints;
+}
+add_filter( 'rest_endpoints', 'hadara_hide_rest_users' );

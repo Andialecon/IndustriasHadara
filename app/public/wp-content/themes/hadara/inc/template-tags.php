@@ -17,6 +17,14 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function hadara_logo( $variant = 'dark' ) {
 	$attachment_id = (int) get_theme_mod( 'light' === $variant ? 'hadara_logo_light' : 'hadara_logo_dark' );
+	$bundled       = hadara_bundled_logo( $variant );
+
+	// El logotipo oficial se sirve en WebP desde el tema (unos 19 KB frente a
+	// los 100 KB del PNG). Si en el personalizador se sube otro logotipo, se
+	// respeta ese.
+	if ( $bundled && ( ! $attachment_id || 0 === strpos( basename( (string) get_attached_file( $attachment_id ) ), 'logo-industrias-hadara' ) ) ) {
+		return $bundled;
+	}
 
 	if ( $attachment_id ) {
 		return wp_get_attachment_image(
@@ -49,6 +57,38 @@ function hadara_logo( $variant = 'dark' ) {
 }
 
 /**
+ * Logotipo en WebP incluido en el tema, con versiones a 1x, 2x y 3x.
+ *
+ * Se muestra a 42 px de alto (40 px en el pie), unos 214 px de ancho.
+ *
+ * @param string $variant «dark» o «light».
+ * @return string Etiqueta img, o cadena vacía si faltan los archivos.
+ */
+function hadara_bundled_logo( $variant = 'dark' ) {
+	$base   = 'light' === $variant ? 'logo-industrias-hadara-claro' : 'logo-industrias-hadara';
+	$srcset = array();
+
+	foreach ( array( 214, 428, 642 ) as $width ) {
+		$file = 'assets/img/' . $base . '-' . $width . '.webp';
+
+		if ( ! file_exists( get_theme_file_path( $file ) ) ) {
+			return '';
+		}
+
+		$srcset[] = esc_url( get_theme_file_uri( $file ) ) . ' ' . $width . 'w';
+	}
+
+	return sprintf(
+		'<img class="site-logo__img" src="%1$s" srcset="%2$s" sizes="214px" width="214" height="42" alt="%3$s" loading="%4$s" decoding="async">',
+		esc_url( get_theme_file_uri( 'assets/img/' . $base . '-428.webp' ) ),
+		esc_attr( implode( ', ', $srcset ) ),
+		esc_attr( hadara_brand( 'name' ) ),
+		// La versión clara solo se usa en el pie.
+		'light' === $variant ? 'lazy' : 'eager'
+	);
+}
+
+/**
  * Fotografía del equipo que abre la portada, recortada del banner de marca.
  *
  * @return string
@@ -60,9 +100,20 @@ function hadara_hero_photo() {
 		return '';
 	}
 
+	// Versiones reducidas: en móvil la foto se ve a unos 560 px de ancho y en
+	// escritorio a unos 604 px (680 px de alto como máximo).
+	$srcset = array();
+
+	foreach ( array( 480 => 'hero-equipo-480.webp', 720 => 'hero-equipo-720.webp', 958 => $file ) as $width => $name ) {
+		if ( file_exists( get_theme_file_path( 'assets/img/' . $name ) ) ) {
+			$srcset[] = esc_url( get_theme_file_uri( 'assets/img/' . $name ) ) . ' ' . $width . 'w';
+		}
+	}
+
 	return sprintf(
-		'<figure class="hero__photo"><img src="%1$s" width="958" height="1080" alt="%2$s" loading="eager" decoding="sync" fetchpriority="high"></figure>',
+		'<figure class="hero__photo"><img src="%1$s" srcset="%2$s" sizes="(min-width: 1220px) 604px, min(100vw, 540px)" width="958" height="1080" alt="%3$s" loading="eager" decoding="sync" fetchpriority="high"></figure>',
 		esc_url( get_theme_file_uri( 'assets/img/' . $file ) ),
+		esc_attr( implode( ', ', $srcset ) ),
 		esc_attr__( 'Trabajadora con polo y trabajador con overol de dotación azul con el logo de Industrias Hadara bordado', 'hadara' )
 	);
 }

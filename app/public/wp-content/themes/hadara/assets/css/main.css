@@ -26,7 +26,7 @@
 	--container: 1220px;
 	--gutter: 22px;
 	--display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
-	--body: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+	--body: "Inter", "Inter Fallback", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 *,

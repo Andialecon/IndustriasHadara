@@ -64,7 +64,7 @@ function hadara_meta_description() {
 	if ( is_front_page() ) {
 		$description = sprintf(
 			/* translators: %s: nombre de la empresa. */
-			__( '%s suministra dotación industrial: jeans y pantalones de trabajo, camisas en dril y jean, overoles, chalecos, capuchas y calzado de seguridad. Cotice por WhatsApp.', 'hadara' ),
+			__( '%s: dotación industrial en Colombia. Jeans, pantalones, camisas, overoles, chalecos y calzado de seguridad con su logo. Cotice por WhatsApp.', 'hadara' ),
 			hadara_brand( 'name' )
 		);
 	} elseif ( is_tax( 'linea' ) ) {
@@ -108,11 +108,35 @@ function hadara_meta_description() {
 
 	$description = trim( preg_replace( '/\s+/', ' ', wp_strip_all_tags( $description ) ) );
 
-	if ( mb_strlen( $description ) > 165 ) {
-		$description = rtrim( mb_substr( $description, 0, 162 ), " ,.;:-" ) . '…';
+	return hadara_trim_description( $description );
+}
+
+/**
+ * Recorta una descripción a lo que Google muestra (unos 155 caracteres).
+ *
+ * Prefiere cortar al final de una frase para no dejar textos a medias como
+ * «…labores eléctrica…»; si la primera frase es demasiado corta, corta en el
+ * último espacio.
+ *
+ * @param string $description Texto limpio.
+ * @param int    $max         Longitud máxima.
+ * @return string
+ */
+function hadara_trim_description( $description, $max = 155 ) {
+	if ( mb_strlen( $description ) <= $max ) {
+		return $description;
 	}
 
-	return $description;
+	$cut = mb_substr( $description, 0, $max );
+
+	if ( preg_match( '/^(.{70,}[.!?])\s/u', $cut . ' ', $match ) ) {
+		return $match[1];
+	}
+
+	$space = mb_strrpos( $cut, ' ' );
+	$cut   = false === $space ? mb_substr( $cut, 0, $max - 1 ) : mb_substr( $cut, 0, $space );
+
+	return rtrim( $cut, " ,.;:-" ) . '…';
 }
 
 /**
@@ -201,7 +225,8 @@ function hadara_wp_robots( $robots ) {
 	$robots['index']             = true;
 	$robots['follow']            = true;
 	$robots['max-image-preview'] = 'large';
-	$robots['max-snippet']       = -1;
+	// Como texto: el núcleo solo imprime «directiva:valor» para valores string.
+	$robots['max-snippet']       = '-1';
 
 	return $robots;
 }
@@ -274,6 +299,17 @@ function hadara_meta_tags() {
 	}
 }
 add_action( 'wp_head', 'hadara_meta_tags', 2 );
+
+/**
+ * Retira la canónica del núcleo: el tema ya imprime la suya y dos etiquetas
+ * rel="canonical" en la misma página pueden hacer que Google ignore ambas.
+ */
+function hadara_remove_core_canonical() {
+	if ( hadara_manages_seo() ) {
+		remove_action( 'wp_head', 'rel_canonical' );
+	}
+}
+add_action( 'wp', 'hadara_remove_core_canonical' );
 
 /**
  * URL canónica de la vista actual.
@@ -540,8 +576,23 @@ function hadara_sitemap_entries() {
 		)
 	);
 
+	// Una línea cambia cuando cambia cualquiera de sus productos.
+	$line_modified = array();
+
 	foreach ( $products as $product ) {
 		$add( get_permalink( $product ), $product->post_modified_gmt );
+
+		$product_terms = get_the_terms( $product, 'linea' );
+
+		if ( $product_terms && ! is_wp_error( $product_terms ) ) {
+			foreach ( $product_terms as $product_term ) {
+				$current = isset( $line_modified[ $product_term->term_id ] ) ? $line_modified[ $product_term->term_id ] : '';
+
+				if ( $product->post_modified_gmt > $current ) {
+					$line_modified[ $product_term->term_id ] = $product->post_modified_gmt;
+				}
+			}
+		}
 	}
 
 	$terms = get_terms(
@@ -556,7 +607,7 @@ function hadara_sitemap_entries() {
 			$link = get_term_link( $term );
 
 			if ( ! is_wp_error( $link ) ) {
-				$add( $link );
+				$add( $link, isset( $line_modified[ $term->term_id ] ) ? $line_modified[ $term->term_id ] : '' );
 			}
 		}
 	}
@@ -610,7 +661,9 @@ function hadara_serve_sitemap() {
 add_action( 'template_redirect', 'hadara_serve_sitemap', 0 );
 
 /**
- * Anuncia /sitemap.xml en robots.txt además del mapa del núcleo.
+ * Anuncia /sitemap.xml en robots.txt en lugar del mapa del núcleo.
+ *
+ * /wp-sitemap.xml sirve el mismo contenido, así que se anuncia una sola URL.
  *
  * @param string $output  robots.txt.
  * @param bool   $public  Si el sitio es público.
@@ -622,6 +675,8 @@ function hadara_robots_txt( $output, $public ) {
 	}
 
 	$sitemap = home_url( '/sitemap.xml' );
+	$output  = preg_replace( '/^Sitemap:\s*' . preg_quote( home_url( '/wp-sitemap.xml' ), '/' ) . '\s*$/mi', '', $output );
+	$output  = preg_replace( "/\n{3,}/", "\n\n", $output );
 
 	if ( false === strpos( $output, $sitemap ) ) {
 		$output = rtrim( $output ) . "\n\nSitemap: " . $sitemap . "\n";

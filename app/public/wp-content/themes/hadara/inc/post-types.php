@@ -136,6 +136,7 @@ function hadara_render_seo_box( $post ) {
 
 	$title = (string) get_post_meta( $post->ID, '_hadara_seo_title', true );
 	$desc  = (string) get_post_meta( $post->ID, '_hadara_seo_description', true );
+	$price = (string) get_post_meta( $post->ID, '_hadara_price', true );
 	?>
 	<p>
 		<label for="hadara_seo_title"><strong><?php esc_html_e( 'Título para buscadores', 'hadara' ); ?></strong></label>
@@ -146,6 +147,11 @@ function hadara_render_seo_box( $post ) {
 		<label for="hadara_seo_description"><strong><?php esc_html_e( 'Meta description', 'hadara' ); ?></strong></label>
 		<textarea class="widefat" id="hadara_seo_description" name="hadara_seo_description" rows="4" maxlength="165"><?php echo esc_textarea( $desc ); ?></textarea>
 		<span class="description"><?php esc_html_e( 'Resumen de ~155 caracteres. Si se deja vacío se usa el extracto o el contenido.', 'hadara' ); ?></span>
+	</p>
+	<p>
+		<label for="hadara_price"><strong><?php esc_html_e( 'Precio de referencia (COP)', 'hadara' ); ?></strong></label>
+		<input type="number" class="widefat" id="hadara_price" name="hadara_price" value="<?php echo esc_attr( $price ); ?>" min="0" step="1">
+		<span class="description"><?php esc_html_e( 'Opcional, por unidad y sin puntos. Solo se usa en los datos para Google: sin precio no se publica oferta.', 'hadara' ); ?></span>
 	</p>
 	<?php
 }
@@ -177,6 +183,14 @@ function hadara_save_seo( $post_id ) {
 		delete_post_meta( $post_id, '_hadara_seo_description' );
 	} else {
 		update_post_meta( $post_id, '_hadara_seo_description', $desc );
+	}
+
+	$price = isset( $_POST['hadara_price'] ) ? absint( wp_unslash( $_POST['hadara_price'] ) ) : 0;
+
+	if ( $price ) {
+		update_post_meta( $post_id, '_hadara_price', $price );
+	} else {
+		delete_post_meta( $post_id, '_hadara_price' );
 	}
 }
 add_action( 'save_post_producto', 'hadara_save_seo' );

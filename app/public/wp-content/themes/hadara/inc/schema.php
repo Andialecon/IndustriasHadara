@@ -276,7 +276,6 @@ function hadara_schema_graph() {
 			'name'        => get_the_title(),
 			'description' => hadara_meta_description(),
 			'url'         => $permalink,
-			'sku'         => (string) get_the_ID(),
 			'brand'       => array(
 				'@type' => 'Brand',
 				'name'  => hadara_brand( 'name' ),
@@ -326,28 +325,23 @@ function hadara_schema_graph() {
 			$product['additionalProperty'] = $properties;
 		}
 
-		// Oferta B2B por cotización: sin precio público inventado.
-		$offer = array(
-			'@type'         => 'Offer',
-			'url'           => $permalink,
-			'priceCurrency' => 'COP',
-			'availability'  => 'https://schema.org/InStock',
-			'itemCondition' => 'https://schema.org/NewCondition',
-			'seller'        => array( '@id' => $organization ),
-		);
+		// Venta B2B por cotización: la oferta solo se publica si la ficha tiene
+		// precio de referencia, porque Google marca como error un Offer sin price.
+		$price = (int) get_post_meta( get_the_ID(), '_hadara_price', true );
 
-		$whatsapp = hadara_product_whatsapp_url();
-
-		if ( $whatsapp ) {
-			$offer['potentialAction'] = array(
-				'@type'  => 'CommunicateAction',
-				'name'   => __( 'Cotizar por WhatsApp', 'hadara' ),
-				'target' => $whatsapp,
+		if ( $price ) {
+			$product['offers'] = array(
+				'@type'         => 'Offer',
+				'url'           => $permalink,
+				'price'         => $price,
+				'priceCurrency' => 'COP',
+				'availability'  => 'https://schema.org/InStock',
+				'itemCondition' => 'https://schema.org/NewCondition',
+				'seller'        => array( '@id' => $organization ),
 			);
 		}
 
-		$product['offers'] = $offer;
-		$graph[]           = $product;
+		$graph[] = $product;
 	}
 
 	if ( is_post_type_archive( 'producto' ) || is_tax( 'linea' ) ) {
