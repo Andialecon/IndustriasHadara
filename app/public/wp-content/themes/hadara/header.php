@@ -20,6 +20,17 @@
 
 <a class="skip-link" href="#contenido"><?php esc_html_e( 'Saltar al contenido', 'hadara' ); ?></a>
 
+<?php
+// En la tienda la barra superior muestra la oferta de compra (envío y pago).
+$hadara_announcement = function_exists( 'hadara_shop_announcement' ) ? hadara_shop_announcement() : '';
+?>
+<?php if ( $hadara_announcement ) : ?>
+<div class="topbar topbar--shop">
+	<div class="container topbar__inner">
+		<p class="topbar__claim"><?php echo esc_html( $hadara_announcement ); ?></p>
+	</div>
+</div>
+<?php else : ?>
 <div class="topbar">
 	<div class="container topbar__inner">
 		<p class="topbar__claim"><?php echo hadara_icon( 'truck' ); ?><?php esc_html_e( 'Ropa de trabajo y calzado de seguridad con despacho a todo el país', 'hadara' ); ?></p>
@@ -30,6 +41,7 @@
 		<?php endif; ?>
 	</div>
 </div>
+<?php endif; ?>
 
 <header class="site-header" id="cabecera">
 	<div class="container site-header__inner">
@@ -37,6 +49,8 @@
 			aria-label="<?php echo esc_attr( sprintf( /* translators: %s: nombre del sitio. */ __( '%s, ir al inicio', 'hadara' ), hadara_brand( 'name' ) ) ); ?>">
 			<?php echo hadara_logo( 'dark' ); ?>
 		</a>
+
+		<?php echo function_exists( 'hadara_cart_link' ) ? hadara_cart_link() : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 
 		<button class="nav-toggle" type="button" aria-expanded="false" aria-controls="menu-principal">
 			<span class="nav-toggle__bars" aria-hidden="true"></span>

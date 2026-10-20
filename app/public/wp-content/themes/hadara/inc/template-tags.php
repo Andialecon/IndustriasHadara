@@ -213,6 +213,8 @@ function hadara_icon( $name ) {
 		'star'           => '<path d="M12 2.6 14.7 8.2l6.2.9-4.5 4.4 1.1 6.2L12 16.8 6.5 19.7l1.1-6.2L3.1 9.1l6.2-.9L12 2.6Z"/>',
 		'chevron-left'   => '<path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12l4.58-4.59Z"/>',
 		'chevron-right'  => '<path d="M9.29 6 7.88 7.41 12.46 12l-4.58 4.59L9.29 18l6-6-6-6Z"/>',
+		'cash'           => '<path d="M2 6h20v12H2V6Zm2 2v8h16V8H4Zm8 1.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5ZM5 9h2v2H5V9Zm12 4h2v2h-2v-2Z"/>',
+		'cart'           => '<path d="M7 18a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm10 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4ZM1 2v2h2l3.6 7.6-1.35 2.44A2 2 0 0 0 7 17h12v-2H7.42a.25.25 0 0 1-.22-.37L8.1 13h7.45a2 2 0 0 0 1.75-1.03L20.88 5.5A1 1 0 0 0 20 4H5.21l-.94-2H1Z"/>',
 	);
 
 	if ( ! isset( $icons[ $name ] ) ) {
@@ -448,6 +450,53 @@ function hadara_breadcrumb_trail() {
 			'label' => __( 'Catálogo', 'hadara' ),
 			'url'   => '',
 		);
+	} elseif ( function_exists( 'is_woocommerce' ) && is_woocommerce() ) {
+		$shop_url  = get_post_type_archive_link( 'product' );
+		$shop_item = array(
+			'label' => __( 'Tienda', 'hadara' ),
+			'url'   => $shop_url ? $shop_url : '',
+		);
+
+		if ( is_singular( 'product' ) ) {
+			$trail[] = $shop_item;
+			$terms   = get_the_terms( get_queried_object_id(), 'product_cat' );
+
+			if ( $terms && ! is_wp_error( $terms ) ) {
+				$trail[] = array(
+					'label' => $terms[0]->name,
+					'url'   => get_term_link( $terms[0] ),
+				);
+			}
+
+			$trail[] = array(
+				'label' => get_the_title(),
+				'url'   => '',
+			);
+		} elseif ( is_product_taxonomy() ) {
+			$trail[] = $shop_item;
+			$term    = get_queried_object();
+
+			if ( $term instanceof WP_Term ) {
+				foreach ( array_reverse( get_ancestors( $term->term_id, $term->taxonomy, 'taxonomy' ) ) as $ancestor_id ) {
+					$ancestor = get_term( $ancestor_id, $term->taxonomy );
+
+					if ( $ancestor instanceof WP_Term ) {
+						$trail[] = array(
+							'label' => $ancestor->name,
+							'url'   => get_term_link( $ancestor ),
+						);
+					}
+				}
+
+				$trail[] = array(
+					'label' => $term->name,
+					'url'   => '',
+				);
+			}
+		} else {
+			$shop_item['url'] = '';
+			$trail[]          = $shop_item;
+		}
 	} elseif ( is_page() ) {
 		foreach ( array_reverse( get_post_ancestors( get_queried_object_id() ) ) as $ancestor ) {
 			$trail[] = array(
@@ -517,7 +566,14 @@ function hadara_breadcrumbs() {
  * Botón flotante de WhatsApp.
  */
 function hadara_floating_whatsapp() {
-	$url = hadara_whatsapp_url();
+	// La página de venta tiene su propia barra de compra y enlace de WhatsApp.
+	if ( function_exists( 'is_product' ) && is_product() ) {
+		return;
+	}
+
+	$shop  = function_exists( 'hadara_is_shop_view' ) && hadara_is_shop_view();
+	$url   = $shop ? hadara_whatsapp_url( __( 'Hola, tengo una pregunta sobre la tienda en línea.', 'hadara' ) ) : hadara_whatsapp_url();
+	$label = $shop ? __( '¿Dudas?', 'hadara' ) : __( 'Cotizar', 'hadara' );
 
 	if ( '' === $url ) {
 		return;
@@ -526,7 +582,7 @@ function hadara_floating_whatsapp() {
 	<a class="wa-float" href="<?php echo esc_url( $url ); ?>" target="_blank" rel="noopener nofollow"
 		aria-label="<?php esc_attr_e( 'Escribir por WhatsApp', 'hadara' ); ?>">
 		<?php echo hadara_icon( 'whatsapp' ); ?>
-		<span class="wa-float__label"><?php esc_html_e( 'Cotizar', 'hadara' ); ?></span>
+		<span class="wa-float__label"><?php echo esc_html( $label ); ?></span>
 	</a>
 	<?php
 }

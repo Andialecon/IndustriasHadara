@@ -76,6 +76,10 @@ function hadara_meta_description() {
 		}
 	} elseif ( is_post_type_archive( 'producto' ) ) {
 		$description = __( 'Catálogo de dotación industrial por líneas: jeans, pantalones, camisas, overoles, chalecos, capuchas y calzado de seguridad.', 'hadara' );
+	} elseif ( is_tax( array( 'product_cat', 'product_tag' ) ) ) {
+		$description = term_description();
+	} elseif ( is_post_type_archive( 'product' ) ) {
+		$description = __( 'Compre en línea con pago contra entrega y envío a todo Colombia. Productos para el trabajo y el hogar en la tienda de Industrias Hadara.', 'hadara' );
 	} elseif ( is_singular( 'producto' ) ) {
 		$description = hadara_get_seo_description();
 
@@ -196,6 +200,30 @@ function hadara_title_separator() {
 add_filter( 'document_title_separator', 'hadara_title_separator' );
 
 /**
+ * Indica si la vista es el carrito, la compra o la cuenta de la tienda.
+ *
+ * @return bool
+ */
+function hadara_is_private_shop_page() {
+	return function_exists( 'is_cart' ) && ( is_cart() || is_checkout() || is_account_page() );
+}
+
+/**
+ * IDs de las páginas de WooCommerce que no deben indexarse.
+ *
+ * @return int[]
+ */
+function hadara_private_shop_page_ids() {
+	if ( ! function_exists( 'wc_get_page_id' ) ) {
+		return array();
+	}
+
+	return array_filter( array_map( 'wc_get_page_id', array( 'cart', 'checkout', 'myaccount' ) ), static function ( $id ) {
+		return $id > 0;
+	} );
+}
+
+/**
  * Directivas robots vía el API del núcleo (evita meta robots duplicados).
  *
  * @param array $robots Directivas actuales.
@@ -214,7 +242,7 @@ function hadara_wp_robots( $robots ) {
 		return $robots;
 	}
 
-	if ( is_search() || is_404() ) {
+	if ( is_search() || is_404() || hadara_is_private_shop_page() ) {
 		$robots['noindex'] = true;
 		$robots['follow']  = true;
 		unset( $robots['index'], $robots['max-image-preview'], $robots['max-snippet'] );
@@ -254,7 +282,7 @@ function hadara_meta_tags() {
 	$title = wp_get_document_title();
 	$image = hadara_social_image_data();
 
-	printf( '<meta property="og:type" content="%s">' . "\n", is_singular( 'producto' ) ? 'product' : ( is_singular() ? 'article' : 'website' ) );
+	printf( '<meta property="og:type" content="%s">' . "\n", is_singular( array( 'producto', 'product' ) ) ? 'product' : ( is_singular() ? 'article' : 'website' ) );
 	printf( '<meta property="og:site_name" content="%s">' . "\n", esc_attr( hadara_brand( 'name' ) ) );
 	printf( '<meta property="og:locale" content="%s">' . "\n", esc_attr( str_replace( '-', '_', get_bloginfo( 'language' ) ) ) );
 	printf( '<meta property="og:title" content="%s">' . "\n", esc_attr( $title ) );
@@ -547,6 +575,7 @@ function hadara_sitemap_entries() {
 
 	$front_id   = (int) get_option( 'page_on_front' );
 	$privacy_id = (int) get_option( 'wp_page_for_privacy_policy' );
+	$private_ids = hadara_private_shop_page_ids();
 
 	$pages = get_posts(
 		array(
@@ -559,55 +588,64 @@ function hadara_sitemap_entries() {
 	);
 
 	foreach ( $pages as $page ) {
-		if ( (int) $page->ID === $front_id || (int) $page->ID === $privacy_id ) {
+		if ( (int) $page->ID === $front_id || (int) $page->ID === $privacy_id || in_array( (int) $page->ID, $private_ids, true ) ) {
 			continue;
 		}
 
 		$add( get_permalink( $page ), $page->post_modified_gmt );
 	}
 
-	$products = get_posts(
-		array(
-			'post_type'      => 'producto',
-			'post_status'    => 'publish',
-			'posts_per_page' => 500,
-			'orderby'        => 'modified',
-			'no_found_rows'  => true,
-		)
-	);
+	// Catálogo B2B y, si WooCommerce está activo, la tienda en línea.
+	$catalogs = array( 'producto' => 'linea' );
 
-	// Una línea cambia cuando cambia cualquiera de sus productos.
-	$line_modified = array();
+	if ( post_type_exists( 'product' ) ) {
+		$catalogs['product'] = 'product_cat';
+	}
 
-	foreach ( $products as $product ) {
-		$add( get_permalink( $product ), $product->post_modified_gmt );
+	foreach ( $catalogs as $post_type => $taxonomy ) {
+		$products = get_posts(
+			array(
+				'post_type'      => $post_type,
+				'post_status'    => 'publish',
+				'posts_per_page' => 1000,
+				'orderby'        => 'modified',
+				'no_found_rows'  => true,
+			)
+		);
 
-		$product_terms = get_the_terms( $product, 'linea' );
+		// Una línea o categoría cambia cuando cambia cualquiera de sus productos.
+		$term_modified = array();
 
-		if ( $product_terms && ! is_wp_error( $product_terms ) ) {
-			foreach ( $product_terms as $product_term ) {
-				$current = isset( $line_modified[ $product_term->term_id ] ) ? $line_modified[ $product_term->term_id ] : '';
+		foreach ( $products as $product ) {
+			$add( get_permalink( $product ), $product->post_modified_gmt );
 
-				if ( $product->post_modified_gmt > $current ) {
-					$line_modified[ $product_term->term_id ] = $product->post_modified_gmt;
+			$product_terms = get_the_terms( $product, $taxonomy );
+
+			if ( $product_terms && ! is_wp_error( $product_terms ) ) {
+				foreach ( $product_terms as $product_term ) {
+					$current = isset( $term_modified[ $product_term->term_id ] ) ? $term_modified[ $product_term->term_id ] : '';
+
+					if ( $product->post_modified_gmt > $current ) {
+						$term_modified[ $product_term->term_id ] = $product->post_modified_gmt;
+					}
 				}
 			}
 		}
-	}
 
-	$terms = get_terms(
-		array(
-			'taxonomy'   => 'linea',
-			'hide_empty' => true,
-		)
-	);
+		$terms = get_terms(
+			array(
+				'taxonomy'   => $taxonomy,
+				'hide_empty' => true,
+			)
+		);
 
-	if ( ! is_wp_error( $terms ) ) {
-		foreach ( $terms as $term ) {
-			$link = get_term_link( $term );
+		if ( ! is_wp_error( $terms ) ) {
+			foreach ( $terms as $term ) {
+				$link = get_term_link( $term );
 
-			if ( ! is_wp_error( $link ) ) {
-				$add( $link, isset( $line_modified[ $term->term_id ] ) ? $line_modified[ $term->term_id ] : '' );
+				if ( ! is_wp_error( $link ) ) {
+					$add( $link, isset( $term_modified[ $term->term_id ] ) ? $term_modified[ $term->term_id ] : '' );
+				}
 			}
 		}
 	}

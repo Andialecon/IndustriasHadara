@@ -9,14 +9,14 @@ $hadara_lines = hadara_get_lines();
 ?>
 </main>
 
-<?php if ( ! is_page_template( 'templates/contacto.php' ) ) : ?>
+<?php // La franja de cotización B2B no aplica a la tienda en línea. ?>
+<?php if ( ! is_page_template( 'templates/contacto.php' ) && ! ( function_exists( 'hadara_is_shop_view' ) && hadara_is_shop_view() ) ) : ?>
 <section class="cta-band">
 	<div class="container cta-band__inner">
 		<div>
 			<h2 class="cta-band__title"><?php esc_html_e( '¿Necesita dotar a su equipo de trabajo?', 'hadara' ); ?></h2>
 			<p class="cta-band__text"><?php esc_html_e( 'Cuéntenos la labor, las tallas y las cantidades. Le armamos la dotación completa y le enviamos la cotización el mismo día.', 'hadara' ); ?></p>
 		</div>
-		<?php echo hadara_whatsapp_button( array( 'label' => __( 'Escribir por WhatsApp', 'hadara' ), 'class' => 'btn btn--whatsapp btn--lg' ) ); ?>
 	</div>
 </section>
 <?php endif; ?>
@@ -95,7 +95,6 @@ $hadara_lines = hadara_get_lines();
 					<li><?php echo hadara_icon( 'pin' ); ?><span><?php echo esc_html( hadara_address_line() ); ?></span></li>
 				<?php endif; ?>
 			</ul>
-			<?php echo hadara_whatsapp_button( array( 'class' => 'btn btn--whatsapp btn--block' ) ); ?>
 		</div>
 	</div>
 

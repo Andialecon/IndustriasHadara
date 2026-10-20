@@ -344,7 +344,7 @@ function hadara_schema_graph() {
 		$graph[] = $product;
 	}
 
-	if ( is_post_type_archive( 'producto' ) || is_tax( 'linea' ) ) {
+	if ( is_post_type_archive( array( 'producto', 'product' ) ) || is_tax( array( 'linea', 'product_cat', 'product_tag' ) ) ) {
 		$elements = array();
 		$position = 0;
 		$total    = 0;

@@ -381,6 +381,49 @@ ul, ol {
 	color: var(--ink);
 }
 
+/* Enlace al carrito de la tienda en línea (solo con WooCommerce activo). */
+.cart-link {
+	position: relative;
+	order: 5;
+	display: inline-flex;
+	align-items: center;
+	gap: .45em;
+	padding: .5em .8em;
+	border: 1px solid var(--line);
+	border-radius: 999px;
+	color: var(--ink);
+	font-weight: 600;
+	font-size: .92rem;
+	text-decoration: none;
+	white-space: nowrap;
+}
+
+.cart-link:hover {
+	background: var(--bg);
+	color: var(--ink);
+}
+
+.cart-link .icon {
+	width: 20px;
+	height: 20px;
+}
+
+.cart-link__count {
+	min-width: 1.45em;
+	height: 1.45em;
+	padding: 0 .35em;
+	border-radius: 999px;
+	background: var(--accent);
+	color: var(--ink);
+	font-size: .78rem;
+	line-height: 1.45em;
+	text-align: center;
+}
+
+.cart-link__count[hidden] {
+	display: none;
+}
+
 .nav-toggle {
 	display: none;
 	margin-left: auto;
@@ -1394,9 +1437,10 @@ ul, ol {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	justify-content: space-between;
-	gap: 12px;
+	justify-content: center;
+	gap: 8px 24px;
 	padding-block: 16px;
+	text-align: center;
 }
 
 .site-footer__bottom p {
@@ -1407,6 +1451,7 @@ ul, ol {
 .site-footer__legal {
 	display: flex;
 	flex-wrap: wrap;
+	justify-content: center;
 	gap: 18px;
 	margin: 0;
 	padding: 0;
@@ -2032,6 +2077,41 @@ ul, ol {
 
 /* ------------------------------------------------------------ adaptaciones */
 
+/* Con el carrito y la tienda en el menú, la cabecera se aprieta antes de pasar
+   al menú móvil: se compactan los enlaces y, en el tramo más estrecho, el botón
+   de WhatsApp cede el sitio al botón flotante, que sigue visible. */
+@media (min-width: 861px) and (max-width: 1180px) {
+	.site-header__inner {
+		gap: 16px;
+	}
+
+	.site-nav {
+		gap: 14px;
+	}
+
+	.site-nav .menu > li > a {
+		padding: .6em .55em;
+	}
+
+	.site-nav__cta .btn {
+		white-space: nowrap;
+	}
+
+	.cart-link__label {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+	}
+}
+
+@media (min-width: 861px) and (max-width: 1040px) {
+	.site-nav__cta {
+		display: none;
+	}
+}
+
 @media (max-width: 1080px) {
 	.site-footer__grid {
 		grid-template-columns: 1fr 1fr;
@@ -2078,6 +2158,23 @@ ul, ol {
 	.nav-toggle {
 		display: block;
 		order: 3;
+	}
+
+	.cart-link {
+		order: 2;
+		margin-left: auto;
+	}
+
+	.cart-link + .nav-toggle {
+		margin-left: 0;
+	}
+
+	.cart-link__label {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
 	}
 
 	.site-header__inner {
@@ -2237,5 +2334,18 @@ ul, ol {
 	.spot-card:hover,
 	.spot-card:hover .spot-card__img {
 		transform: none;
+	}
+}
+
+/* En teléfonos estrechos el contador del carrito empujaba el menú a otra línea. */
+@media (max-width: 420px) {
+	/* Más específico que «.woocommerce-page img { height: auto }». */
+	.site-header .site-logo__img {
+		width: auto;
+		height: 34px;
+	}
+
+	.cart-link {
+		padding: .45em .6em;
 	}
 }
