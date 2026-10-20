@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'HADARA_VERSION', '1.10.1' );
+define( 'HADARA_VERSION', '1.10.2' );
 
 require_once get_theme_file_path( 'inc/brand.php' );
 require_once get_theme_file_path( 'inc/setup.php' );

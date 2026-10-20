@@ -1144,10 +1144,12 @@ ul, ol {
 	background: var(--white);
 	border: 1px solid var(--line);
 	border-radius: var(--radius);
+	text-align: center;
 }
 
 .feature__icon {
-	display: inline-flex;
+	display: flex;
+	margin-inline: auto;
 	align-items: center;
 	justify-content: center;
 	width: 46px;
